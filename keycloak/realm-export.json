@@ -1,6 +1,14 @@
 {
     "realm": "reports-realm",
     "enabled": true,
+
+    "accessTokenLifespan": 120,
+
+    "revokeRefreshToken": true,
+    "refreshTokenMaxReuse": 0,
+
+    "ssoSessionIdleTimeout": 1800,
+
     "roles": {
       "realm": [
         {
@@ -31,7 +39,10 @@
             "temporary": false
           }
         ],
-        "realmRoles": ["user"]
+        "realmRoles": ["user"],
+        "requiredActions": [
+         "CONFIGURE_TOTP"
+        ]
       },
       {
         "username": "user2",
@@ -46,7 +57,10 @@
             "temporary": false
           }
         ],
-        "realmRoles": ["user"]
+        "realmRoles": ["user"],
+        "requiredActions": [
+         "CONFIGURE_TOTP"
+        ]
       },
       {
         "username": "admin1",
@@ -61,7 +75,10 @@
             "temporary": false
           }
         ],
-        "realmRoles": ["administrator"]
+        "realmRoles": ["administrator"],
+        "requiredActions": [
+         "CONFIGURE_TOTP"
+        ]
       },
       {
         "username": "prothetic1",
@@ -76,7 +93,10 @@
             "temporary": false
           }
         ],
-        "realmRoles": ["prothetic_user"]
+        "realmRoles": ["prothetic_user"],
+        "requiredActions": [
+         "CONFIGURE_TOTP"
+        ]
       },
       {
         "username": "prothetic2",
@@ -91,7 +111,10 @@
             "temporary": false
           }
         ],
-        "realmRoles": ["prothetic_user"]
+        "realmRoles": ["prothetic_user"],
+        "requiredActions": [
+         "CONFIGURE_TOTP"
+        ]
       },
       {
         "username": "prothetic3",
@@ -106,23 +129,37 @@
             "temporary": false
           }
         ],
-        "realmRoles": ["prothetic_user"]
+        "realmRoles": ["prothetic_user"],
+        "requiredActions": [
+         "CONFIGURE_TOTP"
+        ]
       }
     ],
     "clients": [
       {
-        "clientId": "reports-frontend",
+        "clientId": "bionicpro-auth",
         "enabled": true,
-        "publicClient": true,
-        "redirectUris": ["http://localhost:3000/*"],
+
+        "clientAuthenticatorType": "client-secret",
+        "secret": "bionicpro-auth-local-secret",
+
+        "publicClient": false,
+        "bearerOnly": false,
+
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+
+        "redirectUris": ["http://localhost:8000/auth/callback"],
         "webOrigins": ["http://localhost:3000"],
-        "directAccessGrantsEnabled": true
+
+        "attributes": {
+          "pkce.code.challenge.method": "S256"
+        }
       },
       {
         "clientId": "reports-api",
         "enabled": true,
-        "clientAuthenticatorType": "client-secret",
-        "secret": "oNwoLQdvJAvRcL89SydqCWCe5ry1jMgq", 
         "bearerOnly": true
       }
     ]
