@@ -46,22 +46,44 @@ const ReportPage: React.FC = () => {
     setUser(null);
   };
 
-  const protectedRequest = async () => {
-    const response = await fetch(
-      `${AUTH_URL}/api/protected`,
-      {
-        credentials: 'include',
-      }
-    );
+  const downloadReport = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    setResult(
-      JSON.stringify(
-        await response.json(),
-        null,
-        2
-      )
+      const response = await fetch(
+          `${AUTH_URL}/reports`,
+        {
+          credentials: 'include',
+      });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download report: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = 'report.xlsx'; // поменяй расширение, если отчет PDF/CSV
+    document.body.appendChild(link);
+
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : 'An error occurred'
     );
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (!initialized) {
     return <div>Loading...</div>;
@@ -86,12 +108,8 @@ const ReportPage: React.FC = () => {
       <div className="p-8 bg-white rounded-lg shadow-md">
         <h1 className="text-2xl font-bold mb-6">Usage Reports</h1>
 
-      {/*    <p>*/}
-      {/*  User: {user.preferred_username}*/}
-      {/*</p>*/}
-
         <button
-          onClick={protectedRequest}
+          onClick={downloadReport}
           disabled={loading}
           className={`px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ${
             loading ? 'opacity-50 cursor-not-allowed' : ''
@@ -106,18 +124,6 @@ const ReportPage: React.FC = () => {
           </div>
         )}
       </div>
-
-
-
-      {/*<button onClick={protectedRequest}>*/}
-      {/*  Protected request*/}
-      {/*</button>*/}
-
-      {/*<button onClick={logout}>*/}
-      {/*  Logout*/}
-      {/*</button>*/}
-
-      {/*<pre>{result}</pre>*/}
     </div>
   );
 };

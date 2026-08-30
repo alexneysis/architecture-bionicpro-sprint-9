@@ -13,6 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
 
+REPORTS_API_URL = os.getenv(
+    "REPORTS_API_URL",
+    "http://api:8001",
+)
 KEYCLOAK_PUBLIC_URL = os.getenv(
     "KEYCLOAK_PUBLIC_URL",
     "http://localhost:8080",
@@ -350,6 +354,46 @@ async def logout(request: Request):
     response.delete_cookie(
         COOKIE_NAME,
         path="/",
+    )
+
+    return response
+
+@app.get("/reports")
+async def reports(request: Request):
+    session_id, session = get_session(request)
+
+    await refresh_access_token(session)
+
+    async with httpx.AsyncClient() as client:
+        print("Forwarding request to reports API", request.url, "with params", dict(request.query_params))
+        print("Url", f"{REPORTS_API_URL}/reports")
+        print("access token for reports API", session.access_token)
+        upstream = await client.get(
+            f"{REPORTS_API_URL}/reports",
+            params=dict(request.query_params),
+            headers={
+                "Authorization": (
+                    f"Bearer {session.access_token}"
+                )
+            },
+        )
+
+    try:
+        content = upstream.json()
+    except ValueError:
+        content = {
+            "detail": upstream.text,
+        }
+
+    response = JSONResponse(
+        status_code=upstream.status_code,
+        content=content,
+    )
+
+    rotate_session(
+        response,
+        session_id,
+        session,
     )
 
     return response
