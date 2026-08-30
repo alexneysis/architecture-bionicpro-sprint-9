@@ -91,6 +91,7 @@ s3 = boto3.client(
 def build_report_key(
     user_id: str,
     processed_until,
+    crm_version: int,
     from_date,
     to_date,
 ) -> str:
@@ -100,7 +101,7 @@ def build_report_key(
 
     return (
         f"users/{user_hash}/"
-        f"{processed_until}/"
+        f"{processed_until}-{crm_version}/"
         f"{from_date}_{to_date}.json"
     )
 
@@ -238,6 +239,21 @@ def get_report(
         WHERE pipeline = 'daily_reports'
         """
     )
+    crm_version_result = clickhouse.query(
+        """
+        SELECT max(version)
+        FROM bionicpro.crm_clients_current FINAL
+        WHERE user_id = {user_id:String}
+        """,
+        parameters={
+            "user_id": user_id,
+        },
+    )
+
+    crm_version = (
+            crm_version_result.first_row[0]
+            or 0
+    )
 
     processed_until = state.first_row[0]
 
@@ -271,6 +287,7 @@ def get_report(
     object_key = build_report_key(
         user_id=user_id,
         processed_until=processed_until,
+        crm_version=crm_version,
         from_date=from_date,
         to_date=to_date,
     )
@@ -294,11 +311,12 @@ def get_report(
             movements,
             avg_battery_level
 
-        FROM bionicpro.report_mart
+        FROM bionicpro.report_mart_cdc FINAL
 
         WHERE user_id = {user_id:String}
           AND report_date >= {from_date:Date}
           AND report_date <= {to_date:Date}
+          AND is_deleted = 0
 
         ORDER BY report_date, prosthesis_id
         """,

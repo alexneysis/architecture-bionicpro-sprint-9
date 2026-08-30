@@ -68,7 +68,7 @@ def get_target_date():
             context["data_interval_end"]
             .in_timezone("UTC")
             .date()
-            - timedelta(days=2)
+            - timedelta(days=1)
         )
 
         logger.info("[get_target_date] target_date=%s", target_date)
@@ -425,13 +425,13 @@ def reports_etl():
             logger.exception("[mark_processed] TASK FAILED")
             raise
 
-    crm = extract_crm()
+    # crm = extract_crm()
     telemetry = extract_telemetry()
 
-    mart = build_report_mart()
+    # mart = build_report_mart()
 
-    [crm, telemetry] >> mart >> mark_processed()
-    # fake_1() >> fake_2()
+    # [crm, telemetry] >> mart >> mark_processed()
+    [telemetry] >> mark_processed()
 
 
 reports_etl()

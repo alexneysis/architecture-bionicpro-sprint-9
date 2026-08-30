@@ -68,8 +68,8 @@ services:
       FRONTEND_URL: http://localhost:3000
       REDIRECT_URI: http://localhost:8000/auth/callback
       REPORTS_API_URL: http://report-api:8001
-      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
-      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
+      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
+      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
     volumes:
       - ./bionicpro-auth/app:/app/app
     ports:
@@ -96,6 +96,14 @@ services:
       POSTGRES_DB: crm
       POSTGRES_USER: crm
       POSTGRES_PASSWORD: crm
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=4
+      - -c
+      - max_replication_slots=4
     ports:
       - "5434:5432"
     volumes:
@@ -119,7 +127,8 @@ services:
       CLICKHOUSE_USER: clickhouse
       CLICKHOUSE_PASSWORD: clickhouse
     volumes:
-      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./clickhouse/cdc.sql:/docker-entrypoint-initdb.d/02-cdc.sql
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -159,8 +168,8 @@ services:
       CLICKHOUSE_USER: clickhouse
       CLICKHOUSE_PASSWORD: clickhouse
 
-      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
-      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
+      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
+      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
     command: >
       bash -c "
       airflow db migrate
@@ -226,8 +235,8 @@ services:
 
       KEYCLOAK_ISSUER: http://localhost:8080/realms/reports-realm
       KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/reports-realm/protocol/openid-connect/certs
-      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
-      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
+      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
+      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
     volumes:
       - ./report-api:/app
     ports:
@@ -248,8 +257,8 @@ services:
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: adminadmin
-      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
-      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
+      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
+      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
 
     volumes:
       - minio-data:/data
@@ -264,8 +273,8 @@ services:
     depends_on:
       - minio
     environment:
-      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
-      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
+      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
+      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
     entrypoint: >
       /bin/sh -c "
       until mc alias set local http://minio:9000 admin adminadmin;
@@ -283,8 +292,8 @@ services:
 
     environment:
       CDN_SECRET: "some_secret_key"
-      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
-      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio"
+      NO_PROXY: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
+      no_proxy: "localhost,127.0.0.1,airflow-apiserver,airflow-scheduler,airflow-dag-processor,airflow-db,clickhouse,crm-db,telemetry-db,report-api,keycloak,minio,kafka,kafka-connect"
 
     volumes:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
@@ -296,6 +305,118 @@ services:
     depends_on:
       minio-init:
         condition: service_completed_successfully
+
+  kafka:
+    image: apache/kafka:4.3.1
+
+    environment:
+      KAFKA_NODE_ID: 1
+
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: >-
+        PLAINTEXT://:9092,
+        CONTROLLER://:9093
+
+      KAFKA_ADVERTISED_LISTENERS: >-
+        PLAINTEXT://kafka:9092
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: >-
+        CONTROLLER:PLAINTEXT,
+        PLAINTEXT:PLAINTEXT
+
+      KAFKA_CONTROLLER_QUORUM_VOTERS: >-
+        1@kafka:9093
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+    ports:
+      - "9092:9092"
+
+  kafka-connect:
+    image: debezium/connect:3.0.0.Final
+
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+
+      GROUP_ID: bionicpro-connect
+
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - crm-db
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'curl --noproxy "*" -f http://localhost:8083/connectors || exit 1'
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  debezium-init:
+    image: alpine:3.20
+    volumes:
+      - ./debezium/crm-connector.json:/config/crm-connector.json:ro
+    depends_on:
+      kafka-connect:
+        condition: service_healthy
+
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        apk add --no-cache curl jq
+        echo "Registering Debezium connector..."
+        jq -c '.config' /config/crm-connector.json > /tmp/connector-config.json
+        curl \
+          --noproxy "*"\
+          --fail \
+          --show-error \
+          --silent \
+          -X PUT \
+          http://kafka-connect:8083/connectors/crm-postgres-connector/config \
+          -H 'Content-Type: application/json' \
+          --data @/tmp/connector-config.json
+        echo
+        echo "Debezium connector registered successfully"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: bionicpro-kafka-ui
+
+    environment:
+      KAFKA_CLUSTERS_0_NAME: bionicpro-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+
+    ports:
+      - "8084:8080"
+
+    depends_on:
+      - kafka
 
 volumes:
   keycloak_db_data:

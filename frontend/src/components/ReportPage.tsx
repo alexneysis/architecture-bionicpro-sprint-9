@@ -47,33 +47,36 @@ const ReportPage: React.FC = () => {
   };
 
   const downloadReport = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const response = await fetch(
-          `${AUTH_URL}/reports`,
-        {
-          credentials: 'include',
-      });
+    // 1. Получаем ссылку на готовый отчет
+    const response = await fetch(
+      `${AUTH_URL}/reports`,
+      {
+        credentials: 'include',
+      }
+    );
 
     if (!response.ok) {
-      throw new Error(`Failed to download report: ${response.status}`);
+      const body = await response.json();
+
+      throw new Error(
+        body.detail || `Failed to generate report: ${response.status}`
+      );
     }
 
-    const blob = await response.blob();
+    const { url } = await response.json();
 
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    if (!url) {
+      throw new Error('Report URL is missing');
+    }
 
-    link.href = url;
-    link.download = 'report.xlsx'; // поменяй расширение, если отчет PDF/CSV
-    document.body.appendChild(link);
+    // 2. Сразу переходим по CDN-ссылке
+    // Браузер скачает сам отчет
+    window.location.href = url;
 
-    link.click();
-    link.remove();
-
-    window.URL.revokeObjectURL(url);
   } catch (err) {
     setError(
       err instanceof Error

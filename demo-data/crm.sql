@@ -1,3 +1,5 @@
+ALTER ROLE crm WITH REPLICATION;
+
 CREATE TABLE clients
 (
     user_id VARCHAR(100) NOT NULL,
