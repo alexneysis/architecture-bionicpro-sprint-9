@@ -1,3 +1,13 @@
+import base64
+import hashlib
+import json
+import os
+import time
+
+import boto3
+
+from botocore.client import Config
+from botocore.exceptions import ClientError
 import os
 from datetime import date, timedelta
 
@@ -6,6 +16,34 @@ import jwt
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from jwt import PyJWKClient
+
+S3_ENDPOINT = os.getenv(
+    "S3_ENDPOINT",
+    "http://minio:9000",
+)
+
+S3_ACCESS_KEY = os.getenv(
+    "S3_ACCESS_KEY",
+    "minioadmin",
+)
+
+S3_SECRET_KEY = os.getenv(
+    "S3_SECRET_KEY",
+    "minioadmin123",
+)
+
+S3_BUCKET = os.getenv(
+    "S3_BUCKET",
+    "bionicpro-reports",
+)
+
+CDN_BASE_URL = os.getenv(
+    "CDN_BASE_URL",
+    "http://localhost:8082",
+)
+
+CDN_SECRET = os.environ["CDN_SECRET"]
+
 
 
 CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "clickhouse")
@@ -37,6 +75,99 @@ app = FastAPI()
 
 jwks_client = PyJWKClient(KEYCLOAK_JWKS_URL)
 
+s3 = boto3.client(
+    "s3",
+    endpoint_url=S3_ENDPOINT,
+    aws_access_key_id=S3_ACCESS_KEY,
+    aws_secret_access_key=S3_SECRET_KEY,
+    config=Config(
+        signature_version="s3v4",
+        s3={
+            "addressing_style": "path",
+        },
+    ),
+)
+
+def build_report_key(
+    user_id: str,
+    processed_until,
+    from_date,
+    to_date,
+) -> str:
+    user_hash = hashlib.sha256(
+        user_id.encode()
+    ).hexdigest()
+
+    return (
+        f"users/{user_hash}/"
+        f"{processed_until}/"
+        f"{from_date}_{to_date}.json"
+    )
+
+
+def report_exists(object_key: str) -> bool:
+    try:
+        s3.head_object(
+            Bucket=S3_BUCKET,
+            Key=object_key,
+        )
+        return True
+
+    except ClientError as error:
+        code = error.response["Error"]["Code"]
+
+        if code in ("404", "NoSuchKey", "NotFound"):
+            return False
+
+        raise
+
+
+def save_report(
+    object_key: str,
+    report: dict,
+) -> None:
+    body = json.dumps(
+        report,
+        default=str,
+        ensure_ascii=False,
+        indent=2,
+    ).encode()
+
+    s3.put_object(
+        Bucket=S3_BUCKET,
+        Key=object_key,
+        Body=body,
+        ContentType="application/json",
+        CacheControl="public, max-age=86400, immutable",
+    )
+
+
+def create_cdn_url(
+    object_key: str,
+) -> str:
+    path = f"/reports/{object_key}"
+
+    expires = int(time.time()) + 15 * 60
+
+    signature_source = (
+        f"{expires}{path} {CDN_SECRET}"
+    )
+
+    digest = hashlib.md5(
+        signature_source.encode()
+    ).digest()
+
+    signature = (
+        base64.urlsafe_b64encode(digest)
+        .rstrip(b"=")
+        .decode()
+    )
+
+    return (
+        f"{CDN_BASE_URL}{path}"
+        f"?md5={signature}"
+        f"&expires={expires}"
+    )
 
 def get_clickhouse():
     return clickhouse_connect.get_client(
@@ -137,6 +268,21 @@ def get_report(
             ),
         )
 
+    object_key = build_report_key(
+        user_id=user_id,
+        processed_until=processed_until,
+        from_date=from_date,
+        to_date=to_date,
+    )
+
+    if report_exists(object_key):
+        print("Hit cache for report:", object_key)
+        return {
+            "url": create_cdn_url(object_key),
+            "source": "s3",
+            "processed_until": processed_until,
+        }
+
     result = clickhouse.query(
         """
         SELECT
@@ -176,10 +322,22 @@ def get_report(
         for row in result.result_rows
     ]
 
-    return {
+    report = {
         "user_id": user_id,
         "from": from_date,
         "to": to_date,
         "processed_until": processed_until,
         "reports": reports,
+    }
+
+    save_report(
+        object_key,
+        report,
+    )
+    print("Generated new report and saved to S3:", object_key)
+
+    return {
+        "url": create_cdn_url(object_key),
+        "source": "clickhouse",
+        "processed_until": processed_until,
     }
